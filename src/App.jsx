@@ -161,6 +161,7 @@ function OrderFormSheet({ initial, customers, trip, rates, onCancel, onSave, onQ
   const [newCustomerMode, setNewCustomerMode] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerWa, setNewCustomerWa] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   const { cost, sell } = orderFinance({ amount: amount === '' ? 0 : amount, currency, markup }, rates);
 
@@ -173,8 +174,17 @@ function OrderFormSheet({ initial, customers, trip, rates, onCancel, onSave, onQ
     setNewCustomerWa('');
   }
 
-  function handleSubmit() {
-    if (!customerId || !itemName.trim() || amount === '' || Number(amount) <= 0) return;
+  function handleSubmit(e) {
+    e?.preventDefault();
+    const missing = [];
+    if (!customerId) missing.push('pelanggan');
+    if (!itemName.trim()) missing.push('nama barang');
+    if (amount === '' || Number(amount) <= 0) missing.push('harga');
+    if (missing.length) {
+      setSubmitError(`Lengkapi ${missing.join(', ')} sebelum menyimpan.`);
+      return;
+    }
+    setSubmitError('');
     onSave({
       id: initial?.id || uid(),
       customerId,
@@ -189,10 +199,9 @@ function OrderFormSheet({ initial, customers, trip, rates, onCancel, onSave, onQ
     });
   }
 
-  const canSave = customerId && itemName.trim() && amount !== '' && Number(amount) > 0;
-
   return (
     <Sheet title={isEdit ? 'Edit Pesanan' : 'Pesanan Baru'} onClose={onCancel}>
+      <form onSubmit={handleSubmit} noValidate>
       <div className="field-label">Buat siapa?</div>
       {!newCustomerMode ? (
         <div className="flex flex-wrap gap-2 mb-3">
@@ -206,8 +215,8 @@ function OrderFormSheet({ initial, customers, trip, rates, onCancel, onSave, onQ
           <input className="input mb-2" placeholder="Nama pelanggan" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} />
           <input className="input mb-2" placeholder="No. WhatsApp (opsional)" value={newCustomerWa} onChange={(e) => setNewCustomerWa(e.target.value)} />
           <div className="flex gap-2">
-            <button className="btn-primary btn-sm" onClick={handleQuickAddCustomer}>Simpan</button>
-            <button className="btn-ghost btn-sm" onClick={() => setNewCustomerMode(false)}>Batal</button>
+            <button type="button" className="btn-primary btn-sm" onClick={handleQuickAddCustomer}>Simpan</button>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => setNewCustomerMode(false)}>Batal</button>
           </div>
         </div>
       )}
@@ -259,9 +268,12 @@ function OrderFormSheet({ initial, customers, trip, rates, onCancel, onSave, onQ
         </div>
       </div>
 
-      <button className="btn-primary w-full" disabled={!canSave} onClick={handleSubmit}>
+      {submitError && <div className="form-error mb-3" role="alert" aria-live="polite">{submitError}</div>}
+
+      <button type="submit" className="btn-primary w-full">
         {isEdit ? 'Update Pesanan' : 'Simpan Pesanan'}
       </button>
+      </form>
     </Sheet>
   );
 }
@@ -682,10 +694,10 @@ const CSS = `
   --text-soft: #6B7C84;
 }
 
-.app-outer { min-height: 100vh; background: var(--ink); display: flex; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif; }
-.app-shell { width: 100%; max-width: 460px; min-height: 100vh; background: var(--ink); display: flex; flex-direction: column; position: relative; }
+.app-outer { min-height: 100vh; min-height: 100dvh; background: var(--ink); display: flex; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif; }
+.app-shell { width: 100%; max-width: 520px; height: 100vh; height: 100dvh; min-height: 560px; background: var(--ink); display: flex; flex-direction: column; position: relative; overflow: hidden; }
 @media (min-width: 640px) {
-  .app-shell { min-height: 92vh; margin: 4vh 0; border-radius: 28px; box-shadow: 0 30px 80px rgba(0,0,0,0.5); overflow: hidden; }
+  .app-shell { height: 92vh; height: 92dvh; min-height: 620px; margin: 4vh 0; border-radius: 28px; box-shadow: 0 30px 80px rgba(0,0,0,0.5); }
 }
 .font-display { font-family: 'Big Shoulders Display', sans-serif; font-weight: 700; }
 .font-mono { font-family: 'JetBrains Mono', monospace; }
@@ -697,7 +709,7 @@ const CSS = `
 
 .trip-pill { margin: 0 16px 12px; display: flex; align-items: center; gap: 6px; background: var(--mango); color: var(--text-dark); border: none; border-radius: 14px; padding: 10px 14px; font-size: 13px; font-weight: 600; width: calc(100% - 32px); }
 
-.app-main { flex: 1; background: var(--paper); border-radius: 24px 24px 0 0; padding: 16px 16px 90px; overflow-y: auto; color: var(--text-dark); }
+.app-main { flex: 1; min-height: 0; background: var(--paper); border-radius: 24px 24px 0 0; padding: 16px 16px 90px; overflow-y: auto; overscroll-behavior: contain; color: var(--text-dark); }
 
 .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; display: flex; background: var(--ink-2); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(255,255,255,0.06); }
 .nav-btn { flex: 1; background: none; border: none; color: var(--ink-soft); display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; padding: 6px 0; border-radius: 12px; }
@@ -731,18 +743,20 @@ const CSS = `
 @keyframes stampIn { 0% { transform: scale(1.5) rotate(-10deg); opacity: 0; } 60% { transform: scale(0.9) rotate(5deg); } 100% { transform: scale(1) rotate(-3deg); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .stamp-active { animation: none; } .rates-pill .spin { animation: none; } }
 
-.fab { position: fixed; bottom: 82px; right: calc(50% - 214px); width: 52px; height: 52px; border-radius: 50%; background: var(--mango); color: var(--text-dark); border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(242,168,61,0.5); }
+.fab { position: absolute; bottom: 82px; right: 16px; width: 52px; height: 52px; border-radius: 50%; background: var(--mango); color: var(--text-dark); border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(242,168,61,0.5); z-index: 5; }
 @media (max-width: 460px) { .fab { right: 16px; } }
 
 .chip { background: var(--paper-dim); border: none; padding: 7px 12px; border-radius: 999px; font-size: 13px; color: var(--text-dark); white-space: nowrap; }
 .chip-active { background: var(--ink); color: var(--paper); }
 
 .field-label { font-size: 12px; font-weight: 700; color: var(--text-soft); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
-.input { width: 100%; background: white; border: 1px solid var(--paper-dim); border-radius: 12px; padding: 10px 12px; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--text-dark); }
+.input { width: 100%; background: white; border: 1px solid var(--paper-dim); border-radius: 12px; padding: 11px 12px; font-size: 16px; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--text-dark); outline: none; }
+.input:focus { border-color: var(--mango-dark); box-shadow: 0 0 0 3px rgba(242,168,61,0.18); }
 .input-mono { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; }
 .input-inline { display: inline-block; padding: 7px 10px; }
 
 .preview-box { background: var(--paper-dim); border-radius: 14px; padding: 12px 14px; }
+.form-error { background: rgba(255,107,91,0.12); border: 1px solid rgba(255,107,91,0.35); color: #A6382D; border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
 
 .btn-primary { background: var(--mango); color: var(--text-dark); border: none; border-radius: 14px; padding: 13px 18px; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .btn-primary:disabled { opacity: 0.4; }
@@ -752,7 +766,7 @@ const CSS = `
 .icon-btn-sm { background: var(--paper-dim); border: none; border-radius: 8px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
 
 .ov-backdrop { position: fixed; inset: 0; background: rgba(15,22,27,0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
-.sheet-panel { width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; background: var(--paper); border-radius: 24px 24px 0 0; padding-top: 10px; animation: sheetUp .28s ease-out; }
+.sheet-panel { width: 100%; max-width: 520px; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); border-radius: 24px 24px 0 0; padding-top: 10px; padding-bottom: env(safe-area-inset-bottom); animation: sheetUp .28s ease-out; color: var(--text-dark); }
 @keyframes sheetUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .sheet-handle { width: 36px; height: 4px; background: var(--paper-dim); border-radius: 999px; margin: 0 auto 10px; }
 
@@ -760,6 +774,13 @@ const CSS = `
 .search-input { border: none; outline: none; background: none; flex: 1; font-size: 14px; }
 
 .notice-box { background: var(--paper-dim); border-radius: 12px; padding: 10px 12px; font-size: 12px; color: var(--text-soft); }
+
+@media (max-width: 360px) {
+  .app-header { padding-left: 12px; padding-right: 12px; }
+  .trip-pill { margin-left: 12px; margin-right: 12px; width: calc(100% - 24px); }
+  .app-main { padding-left: 12px; padding-right: 12px; }
+  .stat-grid { grid-template-columns: 1fr; }
+}
 
 .scan-drop { border: 2px dashed var(--paper-dim); border-radius: 16px; padding: 40px 16px; text-align: center; color: var(--text-soft); }
 .scan-preview { max-width: 100%; max-height: 220px; border-radius: 12px; margin: 0 auto; display: block; }
