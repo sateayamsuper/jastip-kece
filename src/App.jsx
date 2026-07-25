@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Home, Package, Users, Camera, Plus, X, Share2, MapPin, Search, Edit2, Trash2, ChevronRight, MessageCircle, LogOut } from 'lucide-react';
-import { isSupabaseConfigured, loadCloudState, saveCloudState, supabase } from './supabase';
+import { Home, Package, Users, Camera, Plus, X, Share2, MapPin, Search, Edit2, Trash2, ChevronRight, MessageCircle } from 'lucide-react';
 
 // ---------------- Constants ----------------
 const CURRENCIES = [
@@ -25,6 +24,16 @@ const CATEGORIES = ['Skincare', 'Kosmetik', 'Fashion', 'Snack', 'Elektronik', 'O
 const MARKUP_PRESETS = [10, 15, 20, 25, 30];
 const FIXED_JPY_TO_IDR = 109.38;
 const FIXED_RATES = { JPY: 1, IDR: FIXED_JPY_TO_IDR };
+
+const storage = {
+  async get(key) {
+    const value = window.localStorage.getItem(key);
+    return value === null ? null : { value };
+  },
+  async set(key, value) {
+    window.localStorage.setItem(key, value);
+  },
+};
 
 // ---------------- Helpers ----------------
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -665,52 +674,6 @@ function SummarySheet({ trip, orders, customers, rates, onClose }) {
   );
 }
 
-function AuthScreen() {
-  const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-    const action = mode === 'login'
-      ? supabase.auth.signInWithPassword({ email, password })
-      : supabase.auth.signUp({ email, password });
-    const { data, error } = await action;
-    if (error) setMessage(error.message);
-    else if (mode === 'signup' && !data.session) {
-      setMessage('Akun dibuat. Cek email untuk konfirmasi, lalu masuk.');
-    }
-    setLoading(false);
-  }
-
-  return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-logo">✈️</div>
-        <h1 className="font-display">Jastip Kece</h1>
-        <p>Masuk untuk membuka dan menyinkronkan data jastip di semua perangkat.</p>
-        <form onSubmit={handleSubmit}>
-          <label className="field-label" htmlFor="auth-email">Email</label>
-          <input id="auth-email" className="input mb-3" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          <label className="field-label" htmlFor="auth-password">Password</label>
-          <input id="auth-password" className="input mb-3" type="password" minLength={6} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required value={password} onChange={(e) => setPassword(e.target.value)} />
-          {message && <div className="form-error mb-3" role="status">{message}</div>}
-          <button className="btn-primary w-full" type="submit" disabled={loading}>
-            {loading ? 'Tunggu...' : mode === 'login' ? 'Masuk' : 'Buat Akun'}
-          </button>
-        </form>
-        <button className="auth-switch" type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMessage(''); }}>
-          {mode === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ---------------- CSS ----------------
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -739,17 +702,7 @@ const CSS = `
 .font-display { font-family: 'Big Shoulders Display', sans-serif; font-weight: 700; }
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-.auth-page { min-height: 100vh; min-height: 100dvh; padding: 24px; background: var(--ink); display: grid; place-items: center; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--text-dark); }
-.auth-card { width: 100%; max-width: 420px; background: var(--paper); border-radius: 24px; padding: 28px 24px; box-shadow: 0 24px 70px rgba(0,0,0,.35); }
-.auth-card h1 { font-size: 38px; margin: 4px 0; }
-.auth-card > p { color: var(--text-soft); font-size: 14px; line-height: 1.5; margin: 0 0 24px; }
-.auth-logo { font-size: 34px; }
-.auth-switch { width: 100%; margin-top: 14px; padding: 8px; border: 0; background: none; color: var(--mango-dark); font-weight: 700; }
-
 .app-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 8px; }
-.header-actions { display: flex; align-items: center; gap: 7px; }
-.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 3px rgba(47,184,166,.14); }
-.logout-btn { width: 30px; height: 30px; border: 0; border-radius: 9px; background: var(--ink-2); color: var(--ink-soft); display: grid; place-items: center; }
 .rates-pill { display: flex; align-items: center; gap: 4px; background: var(--ink-2); color: var(--paper); border: none; border-radius: 999px; padding: 6px 10px; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
 .rates-pill .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -839,8 +792,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 // ---------------- Main App ----------------
 export default function App() {
   const [loaded, setLoaded] = useState(false);
-  const [session, setSession] = useState(undefined);
-  const [syncStatus, setSyncStatus] = useState('idle');
   const [trips, setTrips] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -858,65 +809,20 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState('Semua');
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setSession(null);
-      return undefined;
-    }
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (!nextSession) setLoaded(false);
-    });
-    return () => data.subscription.unsubscribe();
+    (async () => {
+      const t = await storage.get('trips').catch(() => null);
+      const c = await storage.get('customers').catch(() => null);
+      const o = await storage.get('orders').catch(() => null);
+      setTrips(t ? JSON.parse(t.value) : []);
+      setCustomers(c ? JSON.parse(c.value) : []);
+      setOrders(o ? JSON.parse(o.value) : []);
+      setLoaded(true);
+    })();
   }, []);
 
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    let cancelled = false;
-    (async () => {
-      setLoaded(false);
-      setSyncStatus('syncing');
-      try {
-        const cloud = await loadCloudState(session.user.id);
-        if (cancelled) return;
-        if (cloud?.data) {
-          setTrips(cloud.data.trips || []);
-          setCustomers(cloud.data.customers || []);
-          setOrders(cloud.data.orders || []);
-        } else {
-          const localData = {
-            trips: JSON.parse(window.localStorage.getItem('trips') || '[]'),
-            customers: JSON.parse(window.localStorage.getItem('customers') || '[]'),
-            orders: JSON.parse(window.localStorage.getItem('orders') || '[]'),
-          };
-          setTrips(localData.trips);
-          setCustomers(localData.customers);
-          setOrders(localData.orders);
-          await saveCloudState(session.user.id, localData);
-        }
-        setSyncStatus('synced');
-      } catch {
-        setSyncStatus('error');
-      } finally {
-        if (!cancelled) setLoaded(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [session?.user?.id]);
-
-  useEffect(() => {
-    if (!loaded || !session?.user?.id) return undefined;
-    setSyncStatus('syncing');
-    const timer = window.setTimeout(async () => {
-      try {
-        await saveCloudState(session.user.id, { trips, customers, orders });
-        setSyncStatus('synced');
-      } catch {
-        setSyncStatus('error');
-      }
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [trips, customers, orders, loaded, session?.user?.id]);
+  useEffect(() => { if (loaded) storage.set('trips', JSON.stringify(trips)).catch(() => {}); }, [trips, loaded]);
+  useEffect(() => { if (loaded) storage.set('customers', JSON.stringify(customers)).catch(() => {}); }, [customers, loaded]);
+  useEffect(() => { if (loaded) storage.set('orders', JSON.stringify(orders)).catch(() => {}); }, [orders, loaded]);
 
   const activeTrip = trips.find((t) => t.isActive);
   const pastTrips = trips.filter((t) => !t.isActive).sort((a, b) => b.createdAt - a.createdAt);
@@ -1001,28 +907,6 @@ export default function App() {
     setShowTripSheet(false);
   }
 
-  if (!isSupabaseConfigured) {
-    return (
-      <div className="auth-page">
-        <style>{CSS}</style>
-        <div className="auth-card">
-          <div className="auth-logo">⚙️</div>
-          <h1 className="font-display">Hubungkan Cloud</h1>
-          <p>Tambahkan VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY agar login dan sinkronisasi dapat digunakan.</p>
-          <div className="notice-box">Lihat file <strong>.env.example</strong> dan <strong>supabase/schema.sql</strong>.</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (session === undefined) {
-    return <div className="auth-page"><style>{CSS}</style><div style={{ color: 'var(--paper)' }}>Menghubungkan cloud...</div></div>;
-  }
-
-  if (!session) {
-    return <><style>{CSS}</style><AuthScreen /></>;
-  }
-
   if (!loaded) {
     return (
       <div className="app-outer">
@@ -1043,14 +927,8 @@ export default function App() {
             <div className="font-display" style={{ fontSize: 26, color: 'var(--paper)', lineHeight: 1 }}>Jastip Kece</div>
             <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Nyatet jastip, ga pake ribet</div>
           </div>
-          <div className="header-actions">
-            <div className="rates-pill" title={syncStatus === 'error' ? 'Sinkronisasi gagal' : 'Data tersimpan di cloud'}>
-              <span className="sync-dot" style={syncStatus === 'error' ? { background: 'var(--coral)' } : undefined} />
-              ¥1 = Rp109,38
-            </div>
-            <button className="logout-btn" onClick={() => supabase.auth.signOut()} aria-label="Keluar" title="Keluar">
-              <LogOut size={15} />
-            </button>
+          <div className="rates-pill">
+            ¥1 = Rp109,38
           </div>
         </header>
 

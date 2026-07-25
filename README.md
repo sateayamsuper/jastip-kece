@@ -33,17 +33,7 @@ npm run preview  # melihat build produksi
 npm run lint     # pemeriksaan kode
 ```
 
-## Login dan sinkronisasi cloud
-
-Aplikasi menggunakan Supabase Auth dan tabel cloud yang dilindungi Row Level Security. Setiap pengguna hanya dapat membaca dan mengubah datanya sendiri.
-
-1. Buat project di <https://supabase.com/dashboard>.
-2. Buka SQL Editor dan jalankan isi `supabase/schema.sql`.
-3. Salin `.env.example` menjadi `.env.local`.
-4. Isi Project URL dan publishable key dari **Project Settings → API**.
-5. Jalankan kembali `npm run dev`.
-
-Data lama dari browser akan diunggah otomatis ketika akun tersebut pertama kali login dan belum memiliki data cloud. Gunakan akun yang sama pada HP dan komputer untuk membuka data yang sama.
+Data trip, pelanggan, dan pesanan tersimpan di `localStorage` browser yang digunakan.
 
 ## Catatan fitur scan
 
